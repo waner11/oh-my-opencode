@@ -91,7 +91,8 @@
           "atlas",
           "unstable-agent-babysitter",
           "stop-continuation-guard",
-          "tasks-todowrite-disabler"
+          "tasks-todowrite-disabler",
+          "tool-loop-guard"
         ]
       }
     },
