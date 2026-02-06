@@ -37,6 +37,7 @@ import {
   createUnstableAgentBabysitterHook,
   createPreemptiveCompactionHook,
   createTasksTodowriteDisablerHook,
+  createToolLoopGuardHook,
 } from "./hooks";
 import {
   contextCollector,
@@ -252,6 +253,10 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
 
   const editErrorRecovery = isHookEnabled("edit-error-recovery")
     ? createEditErrorRecoveryHook(ctx)
+    : null;
+
+  const toolLoopGuard = isHookEnabled("tool-loop-guard")
+    ? createToolLoopGuardHook(ctx)
     : null;
 
   const delegateTaskRetry = isHookEnabled("delegate-task-retry")
@@ -634,6 +639,7 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
       await ralphLoop?.event(input);
       await stopContinuationGuard?.event(input);
       await atlasHook?.handler(input);
+      await toolLoopGuard?.event(input);
 
       const { event } = input;
       const props = event.properties as Record<string, unknown> | undefined;
@@ -830,6 +836,7 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
       await categorySkillReminder?.["tool.execute.after"](input, output);
       await interactiveBashSession?.["tool.execute.after"](input, output);
       await editErrorRecovery?.["tool.execute.after"](input, output);
+      await toolLoopGuard?.["tool.execute.after"](input, output);
       await delegateTaskRetry?.["tool.execute.after"](input, output);
       await atlasHook?.["tool.execute.after"]?.(input, output);
       await taskResumeInfo["tool.execute.after"](input, output);

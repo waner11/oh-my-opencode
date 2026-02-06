@@ -38,3 +38,4 @@ export { createCompactionContextInjector, type SummarizeContext } from "./compac
 export { createUnstableAgentBabysitterHook } from "./unstable-agent-babysitter";
 export { createPreemptiveCompactionHook } from "./preemptive-compaction";
 export { createTasksTodowriteDisablerHook } from "./tasks-todowrite-disabler";
+export { createToolLoopGuardHook } from "./tool-loop-guard";

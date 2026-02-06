@@ -94,6 +94,7 @@ export const HookNameSchema = z.enum([
   "unstable-agent-babysitter",
   "stop-continuation-guard",
   "tasks-todowrite-disabler",
+  "tool-loop-guard",
 ])
 
 export const BuiltinCommandNameSchema = z.enum([
