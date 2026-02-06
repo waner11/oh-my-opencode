@@ -106,7 +106,7 @@ function buildTodoDisciplineSection(useTaskSystem: boolean): string {
  * - End-to-end task completion without premature stopping
  */
 
-function buildHephaestusPrompt(
+export function buildHephaestusPrompt(
   availableAgents: AvailableAgent[] = [],
   availableTools: AvailableTool[] = [],
   availableSkills: AvailableSkill[] = [],
@@ -497,10 +497,16 @@ When working on long sessions or complex multi-file tasks:
 
 ### Edit Protocol
 
-1. Always read the file first
-2. Include sufficient context for unique matching
-3. Use \`apply_patch\` for edits
-4. Use multiple context blocks when needed
+**For EXISTING files:**
+1. Read the file first to get current content
+2. Include sufficient context for unique matching (minimum 3 lines before/after target)
+3. Use \`apply_patch\` for surgical edits
+4. Use multiple context blocks when needed for clarity
+
+**For files that don't exist (Read fails):**
+- The file does not exist — create it with Write or skip it
+- **NEVER retry a failed Read more than once** — if the file doesn't exist, it doesn't exist
+- Move on to an alternative approach (create the file, skip it, use glob to find what exists)
 
 ## Verification & Completion
 
@@ -544,6 +550,11 @@ When working on long sessions or complex multi-file tasks:
 1. Fix root causes, not symptoms
 2. Re-verify after EVERY fix attempt
 3. Never shotgun debug
+
+### Anti-Loop Guard (CRITICAL)
+
+**If any tool call fails with the same error 2+ times in a row, STOP retrying that exact call.**
+Move on to an alternative approach (create the file, skip it, use glob to find what exists, or ask for clarification).
 
 ### After 3 Consecutive Failures
 
