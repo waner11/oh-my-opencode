@@ -1,12 +1,22 @@
-import { describe, expect, test, beforeEach, mock } from "bun:test"
+import { describe, expect, test, beforeEach, afterEach, mock } from "bun:test"
 import { SYSTEM_DIRECTIVE_PREFIX } from "../../shared/system-directive"
 import { NOTEPAD_DIRECTIVE } from "./constants"
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+import type { BoulderState } from "../../features/boulder-state/types"
 
 // Mock the session-utils module
 let mockIsCallerOrchestrator = false
 
 mock.module("../../shared/session-utils", () => ({
   isCallerOrchestrator: (sessionID?: string) => mockIsCallerOrchestrator,
+}))
+
+// Mock boulder-state module
+let mockBoulderState: BoulderState | null = null
+
+mock.module("../../features/boulder-state", () => ({
+  readBoulderState: (directory: string) => mockBoulderState,
 }))
 
 const { createSisyphusJuniorNotepadHook } = await import("./index")
@@ -23,7 +33,15 @@ describe("sisyphus-junior-notepad hook", () => {
 
   beforeEach(() => {
     mockIsCallerOrchestrator = false
+    mockBoulderState = null
     hook = createSisyphusJuniorNotepadHook(createMockPluginInput())
+  })
+
+  afterEach(() => {
+    const testDir = "/tmp/test/.sisyphus"
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true })
+    }
   })
 
   describe("tool filtering", () => {
@@ -349,6 +367,148 @@ describe("sisyphus-junior-notepad hook", () => {
 
       //#then - empty prompt is falsy, so hook returns early
       expect(output.args.prompt).toBe("")
+    })
+  })
+
+  describe("notepad file creation", () => {
+    beforeEach(() => {
+      mockIsCallerOrchestrator = true
+    })
+
+    test("should create notepad directory and files when boulder state exists", async () => {
+      //#given
+      mockBoulderState = {
+        active_plan: "/tmp/test/.sisyphus/plans/test-plan.md",
+        started_at: "2026-02-05T00:00:00Z",
+        session_ids: ["test-session"],
+        plan_name: "test-plan",
+      }
+      const input = {
+        tool: "delegate_task",
+        sessionID: "test-session",
+        callID: "call-1",
+      }
+      const output = {
+        args: { prompt: "Some prompt" },
+      }
+
+      //#when
+      await hook["tool.execute.before"](input, output)
+
+      //#then
+      const notepadDir = "/tmp/test/.sisyphus/notepads/test-plan"
+      expect(existsSync(notepadDir)).toBe(true)
+      expect(existsSync(join(notepadDir, "learnings.md"))).toBe(true)
+      expect(existsSync(join(notepadDir, "issues.md"))).toBe(true)
+      expect(existsSync(join(notepadDir, "decisions.md"))).toBe(true)
+      expect(existsSync(join(notepadDir, "problems.md"))).toBe(true)
+    })
+
+    test("should replace {plan-name} placeholder when boulder state exists", async () => {
+      //#given
+      mockBoulderState = {
+        active_plan: "/tmp/test/.sisyphus/plans/my-feature.md",
+        started_at: "2026-02-05T00:00:00Z",
+        session_ids: ["test-session"],
+        plan_name: "my-feature",
+      }
+      const input = {
+        tool: "delegate_task",
+        sessionID: "test-session",
+        callID: "call-1",
+      }
+      const output = {
+        args: { prompt: "Some prompt" },
+      }
+
+      //#when
+      await hook["tool.execute.before"](input, output)
+
+      //#then
+      expect(output.args.prompt).toContain(".sisyphus/notepads/my-feature/")
+      expect(output.args.prompt).not.toContain("{plan-name}")
+    })
+
+    test("should use original directive when boulder state is null", async () => {
+      //#given
+      mockBoulderState = null
+      const input = {
+        tool: "delegate_task",
+        sessionID: "test-session",
+        callID: "call-1",
+      }
+      const output = {
+        args: { prompt: "Some prompt" },
+      }
+
+      //#when
+      await hook["tool.execute.before"](input, output)
+
+      //#then
+      expect(output.args.prompt).toContain("{plan-name}")
+      expect(output.args.prompt).toContain(NOTEPAD_DIRECTIVE)
+    })
+
+    test("should not overwrite existing files", async () => {
+      //#given
+      mockBoulderState = {
+        active_plan: "/tmp/test/.sisyphus/plans/test-plan.md",
+        started_at: "2026-02-05T00:00:00Z",
+        session_ids: ["test-session"],
+        plan_name: "test-plan",
+      }
+      const notepadDir = "/tmp/test/.sisyphus/notepads/test-plan"
+      mkdirSync(notepadDir, { recursive: true })
+      const existingContent = "# Existing content\n"
+      writeFileSync(join(notepadDir, "learnings.md"), existingContent)
+
+      const input = {
+        tool: "delegate_task",
+        sessionID: "test-session",
+        callID: "call-1",
+      }
+      const output = {
+        args: { prompt: "Some prompt" },
+      }
+
+      //#when
+      await hook["tool.execute.before"](input, output)
+
+      //#then
+      const { readFileSync } = require("node:fs")
+      const content = readFileSync(join(notepadDir, "learnings.md"), "utf-8")
+      expect(content).toBe(existingContent)
+    })
+
+    test("should gracefully handle file creation failures", async () => {
+      //#given
+      const mockPluginInput = {
+        client: {},
+        directory: "/invalid/path",
+      } as never
+      const failingHook = createSisyphusJuniorNotepadHook(mockPluginInput)
+      
+      mockBoulderState = {
+        active_plan: "/invalid/path/.sisyphus/plans/test-plan.md",
+        started_at: "2026-02-05T00:00:00Z",
+        session_ids: ["test-session"],
+        plan_name: "test-plan",
+      }
+      const input = {
+        tool: "delegate_task",
+        sessionID: "test-session",
+        callID: "call-1",
+      }
+      const output = {
+        args: { prompt: "Some prompt" },
+      }
+
+      //#when
+      await failingHook["tool.execute.before"](input, output)
+
+      //#then
+      expect(output.args.prompt).toContain("Some prompt")
+      expect(output.args.prompt).toContain("{plan-name}")
     })
   })
 })

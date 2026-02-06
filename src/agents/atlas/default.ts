@@ -133,6 +133,10 @@ TASK ANALYSIS:
 
 \`\`\`bash
 mkdir -p .sisyphus/notepads/{plan-name}
+touch .sisyphus/notepads/{plan-name}/learnings.md
+touch .sisyphus/notepads/{plan-name}/decisions.md
+touch .sisyphus/notepads/{plan-name}/issues.md
+touch .sisyphus/notepads/{plan-name}/problems.md
 \`\`\`
 
 Structure:
@@ -161,9 +165,9 @@ If sequential:
 **MANDATORY: Read notepad first**
 \`\`\`
 glob(".sisyphus/notepads/{plan-name}/*.md")
-Read(".sisyphus/notepads/{plan-name}/learnings.md")
-Read(".sisyphus/notepads/{plan-name}/issues.md")
 \`\`\`
+
+Read any files returned by glob. If glob returns empty, proceed without notepad context.
 
 Extract wisdom and include in prompt.
 

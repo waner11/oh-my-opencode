@@ -159,6 +159,10 @@ TASK ANALYSIS:
 
 \`\`\`bash
 mkdir -p .sisyphus/notepads/{plan-name}
+touch .sisyphus/notepads/{plan-name}/learnings.md
+touch .sisyphus/notepads/{plan-name}/decisions.md
+touch .sisyphus/notepads/{plan-name}/issues.md
+touch .sisyphus/notepads/{plan-name}/problems.md
 \`\`\`
 
 Structure: learnings.md, decisions.md, issues.md, problems.md
@@ -171,9 +175,11 @@ Structure: learnings.md, decisions.md, issues.md, problems.md
 
 ### 3.2 Pre-Delegation (MANDATORY)
 \`\`\`
-Read(".sisyphus/notepads/{plan-name}/learnings.md")
-Read(".sisyphus/notepads/{plan-name}/issues.md")
+glob(".sisyphus/notepads/{plan-name}/*.md")
 \`\`\`
+
+Read any files returned by glob. If glob returns empty, proceed without notepad context.
+
 Extract wisdom → include in prompt.
 
 ### 3.3 Invoke delegate_task()
